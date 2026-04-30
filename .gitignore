@@ -1,0 +1,19 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build/cache
+node_modules/
+__pycache__/
+*.pyc
+
+# Secrets — NUNCA commitear
+.env
+.env.*
+*.credentials.json
+*.token
+
+# Locales (NO ir al repo público)
+docs/private/
