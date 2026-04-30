@@ -138,6 +138,28 @@ Variantes según harness exact. Lee la doc del binario (`claude --help` y subcom
 - **Cadencia muy fina.** Heartbeat cada 30 min con MAX = 48 runs/día = saturas el cupo. Mínimo razonable: 90 min, recomendado 2-3h.
 - **Cron sin `Restart` en el prompt.** El cron lanza una sesión nueva del agente; debe leer SOUL/USER/MEMORY como en el bootstrap. Si tu prompt es solo "manda email", el agente puede salirse de carácter.
 
+### Reminders persistentes — `agent-cron` (systemd timers)
+
+En muchos setups, `CronCreate` del harness es **session-only**: el flag `durable=true` se ignora silenciosamente y todos los crons mueren al reiniciar el agente. Para reminders robustos que sobrevivan restarts y reboots, usa el skill `agent-cron`:
+
+```bash
+# One-shot (a las 9pm de hoy)
+python3 skills/agent-cron/scripts/agent-cron.py add \
+  --at "2026-04-30 21:00:00" --command "..." --name "review-deploy"
+
+# Recurrente (lun-vie 7am)
+python3 skills/agent-cron/scripts/agent-cron.py add \
+  --on-calendar "Mon..Fri 07:00" --command "..." --name "morning-brief"
+
+# Listar / borrar
+python3 skills/agent-cron/scripts/agent-cron.py list
+python3 skills/agent-cron/scripts/agent-cron.py rm <name>
+```
+
+Internamente genera `~/.config/systemd/user/agent-cron-<name>.timer + .service`, hace `daemon-reload + enable --now`. Persistente sin pelear con harness, sin consumir runs MAX.
+
+Detalle completo en `skills/agent-cron/SKILL.md`. **Este es el patrón canónico para reminders persistentes en `solo-agent-on-claude-code`.** `CronCreate` queda para reminders dentro de la sesión interactiva.
+
 ---
 
 ## Dream

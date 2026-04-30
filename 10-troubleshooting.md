@@ -164,6 +164,7 @@ journalctl --user -u myagent.service -n 50 | grep -iE "discord|telegram|auth|den
 1. **Saturaste el límite diario** (15 runs/24h MAX). Cron silenciosamente skipea. Verifica con tu dashboard de Anthropic.
 2. **El cron expression está mal.** `CronCreate` usa cron syntax estándar (`min hour dom mon dow`). Errores comunes: confundir DOM y DOW, usar `*/N` con N grande.
 3. **Timezone.** El servidor puede estar en UTC. Si quieres "07:00 CDMX" pero el cron es UTC, ajusta a `0 13 * * *` (UTC = CDMX + 6h en invierno).
+4. **`CronCreate` es session-only y reiniciaste el agente.** En muchos setups (verificado en Claude Code 2.1.x), el flag `durable=true` se ignora silenciosamente — todos los crons mueren al reiniciar el service. Para reminders persistentes, **usa el skill `agent-cron`** (systemd timers). Ver `skills/agent-cron/SKILL.md`.
 
 ```bash
 # Verifica timezone del servidor:
