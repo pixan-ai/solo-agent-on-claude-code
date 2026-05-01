@@ -107,8 +107,8 @@ Type=oneshot
 {env_file_line}ExecStart=/bin/bash -c {_shell_quote(args.command)}
 """
     if not recurring:
-        # auto-disable after firing
-        service += f"ExecStartPost=/bin/bash -c 'systemctl --user disable {unit_name}.timer 2>/dev/null; rm -f {UNIT_DIR}/{unit_name}.timer {UNIT_DIR}/{unit_name}.service'\n"
+        # auto-cleanup after firing: stop+disable timer, remove unit files, reload daemon to purge cache
+        service += f"ExecStartPost=/bin/bash -c 'systemctl --user disable --now {unit_name}.timer 2>/dev/null; rm -f {UNIT_DIR}/{unit_name}.timer {UNIT_DIR}/{unit_name}.service; systemctl --user daemon-reload'\n"
 
     # Timer unit
     timer = f"""[Unit]
