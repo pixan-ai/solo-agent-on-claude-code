@@ -1,89 +1,76 @@
-# Solo Agent on Claude Code
+# solo-agent-on-claude-code
 
-> **Cómo correr un agente Claude Code 24/7 en tu propio servidor Linux, usando solo tu suscripción Claude MAX, sin frameworks de terceros.**
+Configuración de referencia para correr [Claude Code](https://docs.claude.com/en/docs/claude-code) como un proceso persistente en un servidor Linux. Reusa una suscripción Claude (Pro o MAX) vía OAuth y no requiere otros runtimes de agente.
 
-Este repositorio documenta el patrón completo: cómo configurar Claude Code como un agente persistente con personalidad propia, memoria persistente, canales de chat (Discord, Telegram), tareas recurrentes (heartbeat, cron, dream), y capacidades extensibles — sin LangChain, sin nanobot empresarial, sin OpenAI API, sin frameworks externos. Solo tu cuenta Claude.ai con plan MAX y un servidor Linux modesto.
+Este repositorio documenta una sola configuración funcional: la del autor. No es un framework, una librería, ni un producto. Si te resulta útil como punto de partida, cópialo y modifícalo.
 
-## Para quién es esto
+## Qué resuelve
 
-- Desarrolladores que quieren un agente personal corriendo 24/7 sin pagar SaaS adicional.
-- Operadores que ya tienen Claude MAX y quieren explotar su cupo más allá de chats puntuales.
-- Builders solos / equipos chicos que necesitan automatización event-driven (mensajes Discord/Telegram, emails, recordatorios) sin vendor lock-in.
-- Personas curiosas sobre el modelo de OpenClaw / nanobot / Claude Code agentes pero que prefieren leer un caso real antes de pelear con un framework.
+Claude Code es un CLI interactivo. Para usarlo como agente que reacciona a webhooks, mensajes de chat o eventos de tiempo, hay que:
 
-## Por qué este patrón
+1. Aislar su configuración (`CLAUDE_CONFIG_DIR`) de la del CLI que usas en tu laptop.
+2. Mantenerlo corriendo como `systemd --user` service.
+3. Conectarlo a uno o más canales (Discord, Telegram) vía plugins.
+4. Definir su comportamiento con archivos markdown que el binario carga al arranque.
 
-- **Ya pagaste el MAX.** Los $200/mes incluyen un cupo grande de uso. Un agente headless lo aprovecha en momentos en que no estás chateando.
-- **Sin SaaS recurrente.** Cero costo extra mensual salvo el server (~$5-20/mes en Hetzner/DigitalOcean) y opcionalmente APIs externas (ElevenLabs, Replicate) que ya pagas por uso.
-- **Tu data en tu disco.** Memoria, transcripts, configs viven local. No hay BD ajena que vaya a quebrar y llevarse tus datos.
-- **Personalizable a fondo.** SOUL.md y USER.md te dan voz y conocimiento del usuario propios. No es un asistente genérico.
-- **Hackeable.** Skills son markdown editable. Sin compilación, sin runtime ajeno.
+Ninguno de estos pasos es complicado individualmente. La documentación oficial los cubre por separado. Este repo los junta en una secuencia que ha estado en producción desde principios de 2026 en un servidor de 2 vCPU.
 
-## Lo que vas a tener al final
+## Qué no resuelve
 
-- Un servicio `systemd --user` que corre Claude Code en background, sin TTY.
-- Tu cuenta de Claude reusada vía OAuth — un solo `.credentials.json` para CLI y agente.
-- Un workspace con `SOUL.md` (personalidad), `USER.md` (perfil del operador), `HEARTBEAT.md` (tareas recurrentes), `BOOTSTRAP.md` (ritual de arranque), `MEMORY.md` (índice de memoria persistente), `.claude/skills/` (rutinas modulares).
-- Plugins de Discord y/o Telegram para que te escriba (y te oiga, si conectas STT/TTS).
-- Heartbeat cada N minutos que evalúa una lista de chequeos y solo te despierta si hay algo accionable.
-- Dream semanal que consolida memoria y propone ajustes (con aprobación tuya para cambios canónicos).
-- Capacidades opcionales: voz (ElevenLabs), imágenes (Replicate Flux), análisis de video (ffmpeg + visión nativa de Claude).
+- **Multi-agente coordinado.** Si necesitas que varios agentes se comuniquen entre sí con estado compartido, mira proyectos como [hkuds/nanobot](https://github.com/hkuds/nanobot).
+- **Empresas.** No hay autenticación multi-usuario, audit log centralizado, ni controles de cumplimiento.
+- **Escalado horizontal.** Una sola sesión de Claude Code por servicio. Los plugins son outbound, no exponen endpoints HTTP propios.
+- **Garantías de uptime.** Es lo que sea que tu servidor + Claude API + tu cuota MAX te den.
 
-## Tabla de contenidos
+## Costo
 
-| # | Documento | Qué cubre |
-|---|-----------|-----------|
-| 1 | [Prerequisitos](01-prerequisites.md) | Cuenta Claude MAX, servidor Linux, recursos mínimos, lingering |
-| 2 | [Instalación](02-installation.md) | Claude Code, `CLAUDE_CONFIG_DIR` aislado, login OAuth |
-| 3 | [Servicio systemd](03-systemd-service.md) | `.service` user, `Environment`, `--dangerously-skip-permissions`, journalctl |
-| 4 | [Estructura del workspace](04-workspace-structure.md) | SOUL, USER, AGENTS, BOOTSTRAP, IDENTITY, HEARTBEAT, CLAUDE.md, TOOLS.md |
-| 5 | [Patrón de skills](05-skills-pattern.md) | Frontmatter, anatomy, progressive disclosure, anti-patterns |
-| 6 | [Canales y MCPs](06-channels-mcp.md) | Plugins Discord/Telegram, MCPs de claude.ai, allowlists |
-| 7 | [Heartbeat / cron / dream](07-heartbeat-cron-dream.md) | Tres ciclos, fases del heartbeat, evaluator-self-check |
-| 8 | [Memoria persistente](08-memory.md) | `memory/`, tipos, git, caps, blame staleness, auto-commit |
-| 9 | [Capacidades opcionales](09-optional-capabilities.md) | TTS/STT, image gen, video analysis (con costo per-use) |
-| 10 | [Troubleshooting](10-troubleshooting.md) | Gotchas vistos en producción |
-| - | [TEMPLATES/](TEMPLATES/) | SOUL/USER/etc. genéricos con placeholders |
+| Componente | Costo |
+|------------|-------|
+| Servidor (Hetzner CX22, DigitalOcean basic, etc.) | $5–10/mes |
+| Suscripción Claude Pro o MAX | tu plan actual |
+| ElevenLabs (opcional, para audio) | desde $5/mes |
+| Replicate (opcional, para imágenes) | pago por uso |
 
-## Stack mínimo (sin terceros)
+Los runs disparados por `CronCreate`, `ScheduleWakeup` y `RemoteTrigger` consumen un cupo combinado de la cuenta Claude (15/24h en MAX al momento de escribir). El cupo aplica al plan, no a este patrón en particular.
 
-```
-Servidor Linux (Ubuntu 24.04+ recomendado)
-├── Claude Code (npm install -g @anthropic-ai/claude-code)
-├── CLAUDE_CONFIG_DIR aislado (~/.claude-myagent/)
-├── Suscripción Claude MAX → .credentials.json (OAuth)
-├── systemd --user service
-├── Workspace dir (~/agents/<name>/)
-│   ├── SOUL.md, USER.md, AGENTS.md, BOOTSTRAP.md
-│   ├── HEARTBEAT.md, IDENTITY.md, CLAUDE.md, TOOLS.md
-│   └── .claude/skills/<rutina>/SKILL.md
-└── Plugins (opcionales, comunitarios):
-    ├── discord (claude-plugins-official/discord)
-    └── telegram (claude-plugins-official/telegram)
-```
+## Documentación
 
-## Stack extendido (con APIs externas opcionales)
+| # | Archivo | Contenido |
+|---|---------|-----------|
+| 1 | [docs/01-install.md](docs/01-install.md) | Node, Claude Code, `CLAUDE_CONFIG_DIR`, OAuth |
+| 2 | [docs/02-systemd.md](docs/02-systemd.md) | Unit file, `EnvironmentFile`, lingering, operación |
+| 3 | [docs/03-workspace.md](docs/03-workspace.md) | Layout del workspace y rol de cada archivo |
+| 4 | [docs/04-skills.md](docs/04-skills.md) | Anatomía de un skill, frontmatter, cuándo escribir uno |
+| 5 | [docs/05-channels.md](docs/05-channels.md) | Plugins Discord/Telegram, MCPs heredados, allowlists |
+| 6 | [docs/06-scheduling.md](docs/06-scheduling.md) | Heartbeat, `CronCreate`, `agent-cron`, presupuesto de runs |
+| 7 | [docs/07-memory.md](docs/07-memory.md) | Directorio de memoria, tipos, caps, versionado git |
+| 8 | [docs/08-troubleshooting.md](docs/08-troubleshooting.md) | Problemas observados, síntomas, fixes |
 
-| Capacidad | API externa | Costo aproximado | Skill |
-|-----------|-------------|------------------|-------|
-| Hablar (TTS) | ElevenLabs Lumina | ~$5/M chars | `elevenlabs-tts/generate.py` |
-| Escuchar (STT) | ElevenLabs Scribe | ~$0.40/h audio | `elevenlabs-tts/transcribe.py` |
-| Generar imagen | Replicate Flux 1.1 Pro | ~$0.04/imagen | `image-gen/generate.py` |
-| Ver video | ffmpeg local + Read nativo | $0 (excepto STT del audio) | `video-vision/extract_frames.py` |
+`templates/` contiene archivos de configuración listos para copiar y modificar. `skills/agent-cron/` es el único skill incluido — un wrapper sobre `systemd --user` timers para reminders persistentes.
 
-Ninguna de estas es obligatoria. El core funciona sin ellas.
+## Asunciones
 
-## Estado del proyecto
+La documentación asume:
 
-Este es un **patrón en producción**, no una librería empaquetada. La idea es que lo leas, lo adaptes, y lo deformes a tu agente. No esperes una API estable o versionado SemVer — esto es opinión expresada en archivos.
+- Ubuntu 24.04 LTS o equivalente con `systemd`.
+- Un usuario no-root con acceso `sudo` para la instalación inicial.
+- Familiaridad con `systemctl --user`, `journalctl`, archivos de unidad systemd.
+- Lectura previa de la documentación oficial de Claude Code.
+
+Si algo de lo anterior no aplica, los pasos pueden necesitar adaptación.
+
+## Estado
+
+La configuración descrita corre en producción en un servidor del autor. La documentación se actualiza cuando algo cambia en el setup vivo. No hay versionado SemVer ni changelog formal — `git log` es la fuente de verdad.
+
+Issues y PRs bienvenidos. No hay garantía de respuesta rápida.
 
 ## Licencia
 
-MIT (propuesta — confirmar antes de hacer público).
+MIT. Ver [LICENSE](LICENSE).
 
-## Reconocimientos
+## Referencias
 
-- [Anthropic](https://www.anthropic.com/) — Claude, Claude Code, MAX.
-- [hkuds/nanobot](https://github.com/hkuds/nanobot) — fuente de inspiración para varios patrones (`heartbeat`, `dream`, `ask_user`, `on_progress`, `skill-creator`). Adoptamos los conceptos, no el runtime Python.
-- [Andrej Karpathy](https://github.com/forrestchang/andrej-karpathy-skills) — las cuatro reglas operativas (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution).
-- [OpenClaw](https://github.com/openclaw/openclaw) — referencia de filosofía de agentes hackeables.
+- [Anthropic — Claude Code](https://docs.claude.com/en/docs/claude-code)
+- [hkuds/nanobot](https://github.com/hkuds/nanobot) — patrones de heartbeat / dream / ask-user adoptados aquí.
+- [systemd.timer(5)](https://www.freedesktop.org/software/systemd/man/systemd.timer.html) — base del skill `agent-cron`.

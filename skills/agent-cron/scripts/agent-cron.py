@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """agent-cron — persistent reminders via systemd --user timers.
 
-Subcomandos:
+Subcommands:
   add     create a one-shot or recurring timer
   list    show all agent-cron timers
   rm      remove a timer
 
-Why this and not CronCreate? CronCreate from the harness is session-only in
-many setups (the durable=true flag is silently ignored). systemd --user
-timers survive restarts, reboots, and don't depend on the agent being alive.
+When `CronCreate` from the Claude Code harness is session-only (the
+`durable=true` flag is silently ignored in many setups), this wrapper produces
+systemd --user timers that survive process restarts and host reboots.
 
-Stdlib only. No external deps.
+Stdlib only. No external dependencies.
 """
 from __future__ import annotations
 

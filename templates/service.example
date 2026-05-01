@@ -1,0 +1,44 @@
+# Copiar a ~/.config/systemd/user/<name>.service
+# Reemplazar:
+#   <name>          → identificador del agente (alpha, beta, etc.)
+#   ~/.claude-<name>  → directorio aislado de Claude Code
+#   ~/agents/<name>   → workspace del agente
+# Después:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now <name>.service
+
+[Unit]
+Description=Claude Code agent — <name>
+Documentation=https://docs.claude.com/en/docs/claude-code
+After=network-online.target nss-lookup.target
+Wants=network-online.target nss-lookup.target
+
+[Service]
+Type=forking
+WorkingDirectory=%h/agents/<name>
+
+Environment="PATH=%h/.bun/bin:%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="CLAUDE_CONFIG_DIR=%h/.claude-<name>"
+EnvironmentFile=%h/.env.global
+
+# Espera a que DNS responda antes de arrancar Claude Code.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do getent hosts api.anthropic.com >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1'
+
+# Si usas plugin Telegram, reescribe su .env desde la variable global TELEGRAM_BOT_TOKEN:
+# ExecStartPre=/bin/sh -c 'umask 077; printf "TELEGRAM_BOT_TOKEN=%%s\n" "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN missing}" > %h/.claude-<name>/channels/telegram/.env'
+
+# Claude Code en tmux para tener TTY. --channels lista los plugins de chat activos.
+ExecStart=/usr/bin/tmux -L <name> new-session -d -s <name> \
+    -c %h/agents/<name> \
+    %h/.local/bin/claude --dangerously-skip-permissions \
+        --channels plugin:discord@claude-plugins-official \
+                   plugin:telegram@claude-plugins-official
+
+ExecStop=/usr/bin/tmux -L <name> kill-server
+
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+
+[Install]
+WantedBy=default.target
