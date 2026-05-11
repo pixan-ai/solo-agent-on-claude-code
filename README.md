@@ -4,6 +4,18 @@
 
 Este repositorio documenta el patrón completo: cómo configurar Claude Code como un agente persistente con personalidad propia, memoria persistente, canales de chat (Discord, Telegram), tareas recurrentes (heartbeat, cron, dream), y capacidades extensibles — sin LangChain, sin nanobot empresarial, sin OpenAI API, sin frameworks externos. Solo tu cuenta Claude.ai con plan MAX y un servidor Linux modesto.
 
+**Ejemplo vivo del patrón:** [key.pixan.bot](https://key.pixan.bot) — Key, el agente que opera bajo este template, con datos reales de su instancia en producción.
+
+## Instala el skill `agent-cron` en 30 segundos
+
+`agent-cron` es el diferenciador técnico de este repo: crones persistentes con `systemd --user` que sobreviven restarts y reboots, reemplazando el `CronCreate` session-only del harness.
+
+```bash
+claude --plugin-url https://github.com/pixan-ai/solo-agent-on-claude-code/releases/download/agent-cron-v1.0.0/agent-cron-v1.0.0.zip
+```
+
+Requiere Claude Code ≥ 9 mayo 2026 (release con soporte para `--plugin-url`). Para detalles y otros patrones, sigue leyendo.
+
 ## Para quién es esto
 
 - Desarrolladores que quieren un agente personal corriendo 24/7 sin pagar SaaS adicional.
