@@ -100,7 +100,7 @@ copies `.credentials.json` de un agente a otro — es la causa raíz de la mayor
 misteriosas".
 
 **Parche mientras tanto:** un watchdog horario que revise que cada config dir todavía tenga
-`refreshToken` y te avise antes de que el agente se muera del todo. Ver `12-failure-modes.md`.
+`refreshToken` y te avise antes de que el agente se muera del todo. Ver `10-failure-modes.md`.
 
 ---
 
@@ -161,7 +161,7 @@ Con un agente, el comportamiento social no existe. Con varios, es la mitad del t
   con heartbeat, saca los ciclos del harness y ponlos en `cron` del sistema — más barato, más
   confiable, y no compite con los webhooks.
 - **La RAM.** Cada agente es un proceso Node con contexto en memoria. Ocho sesiones en un equipo
-  modesto es real, pero necesitas cap por cgroup. Ver `12-failure-modes.md`.
+  modesto es real, pero necesitas cap por cgroup. Ver `10-failure-modes.md`.
 
 ---
 

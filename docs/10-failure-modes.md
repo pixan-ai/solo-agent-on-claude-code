@@ -1,6 +1,6 @@
 # 12 — Qué se rompe cuando lo dejas corriendo meses
 
-> `10-troubleshooting.md` cubre los tropiezos de instalación. Este documento cubre otra cosa:
+> `08-troubleshooting.md` cubre los tropiezos de instalación. Este documento cubre otra cosa:
 > las fallas que solo aparecen después de semanas o meses en producción, cuando ya te confiaste.
 
 ## La lección que ordena todo lo demás
@@ -41,7 +41,7 @@ Es la única solución que nos aguantó. Todo lo demás fueron parches.
 
 ## Falla 2 — Muerte por credenciales
 
-Cubierta a fondo en `11-fleet.md`. Aquí lo que importa para monitoreo:
+Cubierta a fondo en `09-fleet.md`. Aquí lo que importa para monitoreo:
 
 **Un agente con la credencial muerta se ve SANO.** Responde rápido. Responde siempre. Responde un
 error. Cualquier watchdog que mida "¿contestó?" o "¿en cuánto tiempo?" lo va a dar por vivo.
