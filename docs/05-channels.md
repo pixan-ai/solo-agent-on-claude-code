@@ -193,3 +193,47 @@ Para generación de imágenes con Replicate, un script `generate.py` invocado de
 - Hardcodear tokens en JSON versionado. Siempre `${VAR}` con valor en `EnvironmentFile`.
 - Aprobar pairings desde el propio chat del agente.
 - Habilitar todos los connectors de claude.ai por default. Cada uno expone tools al system prompt; agrega ruido si no los usas.
+
+## Audio: nota de voz, nunca archivo mp3
+
+Si tu agente habla, esto no es cosmético — es la diferencia entre que el chat se sienta natural o
+molesto, y es una regla que conviene fijar desde el primer día para todos tus agentes.
+
+**El problema.** La forma obvia de mandar audio es adjuntar el mp3 al mensaje. Eso viaja por
+`sendAudio`, y Telegram lo trata como **pista de música**: aparece como archivo, y al terminar de
+reproducirse encadena automáticamente las pistas anteriores del chat. No hay toggle para
+apagarlo.
+
+**Lo correcto.** `sendVoice`, que produce la burbuja de nota de voz con su onda y su control de
+velocidad. Pero exige **OGG con códec Opus** — un mp3 renombrado no sirve.
+
+```bash
+ffmpeg -i entrada.mp3 -vn -c:a libopus -b:a 32k -ar 48000 -ac 1 salida.ogg
+```
+
+Mono, 48 kHz y `libopus` son los tres que importan. Con estéreo u otro códec, Telegram deja de
+tratarlo como nota de voz.
+
+**El gotcha que nos costó semanas de audio feo.** En un servidor donde `ffmpeg` es un build
+estático en `~/.local/bin`, un servicio cuyo `PATH` no lo incluye falla al convertir. Alguien
+depuró el síntoma, concluyó *"no hay ffmpeg en este servidor"*, lo escribió en la documentación
+del agente, y a partir de ahí ese agente mandó **mp3 crudo por `sendVoice`** durante meses. Se ve
+como nota de voz y suena peor.
+
+Dos lecciones:
+
+1. **Resuelve el binario por ruta absoluta como fallback**, no confíes solo en el `PATH`:
+
+   ```python
+   def _ffmpeg():
+       return shutil.which("ffmpeg") or os.path.expanduser("~/.local/bin/ffmpeg")
+   ```
+
+2. **"No existe" casi nunca es la explicación correcta de "no lo encuentro".** Antes de escribir
+   una limitación en la documentación de un agente, verifícala — se va a propagar a todos los
+   clones y nadie la vuelve a cuestionar.
+
+**Cómo lo verificas de verdad:** mira el `mime_type` de lo que llega. Una nota de voz correcta
+reporta `audio/ogg`. Si reporta `audio/mpeg`, tu agente está mandando el mp3 sin convertir,
+aunque en pantalla parezca una nota de voz.
+
