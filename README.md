@@ -55,6 +55,8 @@ Requiere Claude Code ≥ 9 mayo 2026 (release con soporte para `--plugin-url`). 
 | 8 | [Memoria persistente](08-memory.md) | `memory/`, tipos, git, caps, blame staleness, auto-commit |
 | 9 | [Capacidades opcionales](09-optional-capabilities.md) | TTS/STT, image gen, video analysis (con costo per-use) |
 | 10 | [Troubleshooting](10-troubleshooting.md) | Gotchas vistos en producción |
+| 11 | [De uno a varios](11-fleet.md) | Cuándo clonar, aislamiento, credenciales, convivencia |
+| 12 | [Qué se rompe con los meses](12-failure-modes.md) | Fallas de largo plazo y qué monitorear |
 | - | [TEMPLATES/](TEMPLATES/) | SOUL/USER/etc. genéricos con placeholders |
 
 ## Stack mínimo (sin terceros)
@@ -84,6 +86,12 @@ Servidor Linux (Ubuntu 24.04+ recomendado)
 | Ver video | ffmpeg local + Read nativo | $0 (excepto STT del audio) | `video-vision/extract_frames.py` |
 
 Ninguna de estas es obligatoria. El core funciona sin ellas.
+
+## Sobre el nombre
+
+"Solo" carga dos sentidos: **una sola persona** (el dev solo que ya paga el MAX y quiere exprimirlo cuando no está chateando) y **un solo agente** (sin framework, sin equipo, sin capa ajena).
+
+El primer sentido sigue intacto. El segundo se nos quedó chico: el patrón terminó corriendo una flota de ocho agentes durante meses. No renombramos el repo porque un agente solo sigue siendo la puerta de entrada correcta — nadie empieza con siete. Lo que aprendimos al crecer está en [11](11-fleet.md) y [12](12-failure-modes.md), que son los dos documentos que no existían en la versión original.
 
 ## Estado del proyecto
 
