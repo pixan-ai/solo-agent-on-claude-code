@@ -237,3 +237,41 @@ Dos lecciones:
 reporta `audio/ogg`. Si reporta `audio/mpeg`, tu agente está mandando el mp3 sin convertir,
 aunque en pantalla parezca una nota de voz.
 
+### La duración no se deduce: hay que mandarla
+
+Convertir a OGG/Opus correctamente **no basta**. `sendVoice` acepta un parámetro `duration` y, si
+no se lo mandas, Telegram **no lo calcula del contenedor**: el audio llega marcando `0:00`. Se
+reproduce, pero el usuario no puede ver cuánto dura ni saltar hacia adelante. En un brief de cuatro
+minutos eso es la diferencia entre escucharlo y no abrirlo.
+
+El síntoma engaña porque **todo lo demás está bien**: el `mime_type` dice `audio/ogg`, la burbuja
+es la correcta, la API responde `ok: true`. Solo el campo `duration` de la respuesta lo delata:
+
+```json
+{"ok":true,"result":{"voice":{"duration":0,"mime_type":"audio/ogg"}}}
+```
+
+Sin `ffprobe` en el servidor, la duración se saca del `stderr` de `ffmpeg`:
+
+```python
+def duration_secs(src):
+    out = subprocess.run([_ffmpeg(), "-i", src], capture_output=True, text=True).stderr
+    m = re.search(r"Duration: (\d+):(\d+):(\d+)\.(\d+)", out)
+    if not m:
+        return None
+    h, mi, sec, cs = (int(g) for g in m.groups())
+    return round(h * 3600 + mi * 60 + sec + cs / 100)
+```
+
+Y se manda como un campo más del multipart, junto a `chat_id`.
+
+**La lección de flota, que es la parte interesante.** Este defecto lo encontró un agente al revisar
+la respuesta de su propio envío, no un humano al escuchar el audio. Llevaba meses en las nueve
+copias del script sin que nadie lo notara, porque el audio *funcionaba*. Vale la pena que tus
+agentes **lean lo que la API les contesta** en lugar de conformarse con `ok: true` — ahí es donde
+viven los defectos que no producen error.
+
+Corolario incómodo: cuando un agente reenvía algo, puede ser un reintento ciego o una corrección
+deliberada. El artefacto no distingue las dos. Antes de corregir a un agente en un canal
+compartido, lee su transcript — nosotros nos equivocamos justo así.
+
